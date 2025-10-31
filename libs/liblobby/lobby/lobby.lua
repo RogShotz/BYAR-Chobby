@@ -5,7 +5,7 @@
 VFS.Include(LIB_LOBBY_DIRNAME .. "observable.lua")
 VFS.Include(LIB_LOBBY_DIRNAME .. "utilities.lua")
 
-local spJsonDecode = Spring.Utilities.json.decode
+local JsonDecode = Json.decode
 local spGetTimer = Spring.GetTimer
 local spDiffTimers = Spring.DiffTimers
 
@@ -1529,7 +1529,7 @@ function Lobby:ParseBarManager(battleID, message)
 	local battleInfo = {}
 	local newBosses
 
-	local barManagerSettings = spJsonDecode(message)
+	local barManagerSettings = JsonDecode(message)
 	if not barManagerSettings['BattleStateChanged'] then
 		return battleInfo
 	end
@@ -1760,7 +1760,7 @@ function Lobby:ParseRPC(json)
 	local thisGameStartedAt = nil
 	local lastGameEndedAt = nil
 
-	local rpc = spJsonDecode(json)
+	local rpc = JsonDecode(json)
 	local statusRpc = RpcGetGameStatus(rpc) or RpcGetBattleStatus(rpc)
 	
 	if statusRpc then
@@ -2283,6 +2283,20 @@ function Lobby:GetBattlePlayerCount(battleID)
 		--]]
 		return math.max(0, playerCount)
 	end
+end
+
+function Lobby:GetBattleMaxPlayers(battleID)
+	local battle = self:GetBattle(battleID)
+	if not battle then
+		return 0
+	end
+
+	-- fall back to maxPlayers, if nbTeams or teamSize is unknown
+	return (battle.teamSize and battle.nbTeams) and (battle.teamSize * battle.nbTeams) or battle.maxPlayers
+end
+
+function Lobby:GetPlayerOccupancy(battleID)
+	return self:GetBattlePlayerCount(battleID) .. "/" .. self:GetBattleMaxPlayers(battleID)
 end
 
 function Lobby:GetBattleFoundedBy(userName)

@@ -15,6 +15,32 @@ local welcomePanelItems = {
         Text = "Welcome back Commander. We hope you are ready for epic Singleplayer and Multiplayer battles. Check out our Discord and join the community!\n",
     },
 
+
+    {
+        Header = "Spooktober",
+        Text = "\nSpooktober Event Is Now Live!\nEnjoy the event music and other Halloween themed decorations until the end of October!",
+        --Text = "Are you a music producer yourself? Or maybe you have a friend who is and would like to get some recognition? " .. " \n" .. " \n" .. "Create a remix/cover of any BAR track, or even a mix of BAR themes in a single track, with a spooky vibe, and it might end up featured in the game!\n\nAn unique opportunity for aspiring music artists to shine!",
+        Image = "LuaMenu/images/welcomepanel/Halloween.png",
+    },
+
+    {
+        Header = "New Map: Devil's Postpiles",
+        Text = "Towering basalt-like structures carry crucial resources on their plateaus, while murky shallows on the low grounds prevent most construction. Army positioning and movement will be paramount." .. " \n" .. " \n" .. "Made for 1v1 by AidanNaut.",
+        Image = "LuaMenu/configs/gameConfig/byar/minimapThumbnail/Devil's_Postpiles_1.0.png",
+    },
+
+--    {
+--        Header = "Upcoming Events:",
+--    },
+
+    {
+        Header = "Help Keep BAR Clean - Join the Overwatch Team!",
+        Text = "As BAR grows, so does the need for solid community moderation. We're looking for reliable, level-headed players to join the Overwatch Team—a trusted group that helps review reports, flag issues, and keep things fair.".." \n".." \n".."If you’re active and care about a respectful game space, we’d love your help!".." \n".." \n".."Grab the development role from ⁠Channels & Roles to access the thread below:",
+        Image = "LuaMenu/images/welcomepanel/overwatch.png",
+        Url = "https://discord.com/channels/549281623154229250/1097438343861649458",
+        UrlText = "Sign Up for Overwatch",
+    },
+
     {
         Header = "The Lightbringer Update is Here!",
         Text = "Commanders, after two weeks of a testing run for the Lightbringer Update, we are thrilled to announce the merge went without any major issues. This update represents the largest visual overhaul we have ever attempted. Enjoy BAR battles being more lit than ever!" .. " \n" .. " \n" .. "We have prepared a detailed post about the update and a Cinematic Highlights Video, check it out!",
@@ -22,19 +48,7 @@ local welcomePanelItems = {
         Url = "https://www.beyondallreason.info/news/lightbringer-update",
         UrlText = "Read the Full Changes",
     },
-
-    {
-        Header = "Help Keep BAR Clean - Join the Overwatch Team!",
-        Text = "As BAR grows, so does the need for solid community moderation. We're looking for reliable, level-headed players to join the Overwatch Team—a trusted group that helps review reports, flag issues, and keep things fair.".." \n".." \n".."If you’re active and care about a respectful game space, we’d love your help!".." \n".." \n".."Grab the development role from ⁠Channels & Roles to access the thread below:",
-        Image = "LuaMenu/images/overwatch.png",
-        Url = "https://discord.com/channels/549281623154229250/1097438343861649458",
-        UrlText = "Sign Up for Overwatch",
-    },
-
-    -- {
-    --     Header = "Upcoming Events",
-    -- },
-
+    
     {
         Header = "Now Available: BAR Guides",
         Text = "New to Beyond All Reason? Check out these new Guides on Discord written by Zeteo!" .. " \n" .. " \n",
@@ -45,7 +59,7 @@ local welcomePanelItems = {
     {
         Header = "BAR is accepting donations again! ",
         Text = "Dear Commanders, we are delighted to announce the reopening of our donation platform after a longer-than-expected hiatus." .. " \n" .. " \n" .. "As we've been hard at work refining BAR to ensure maximum enjoyment for our ever-expanding community, we repeatedly placed donation efforts on hold to focus on other priorities." .. " \n" .. " \n" .. "Support BAR with our newly reopened donation platform!" .. " \n",
-        Image = "LuaMenu/images/donate.png",
+        Image = "LuaMenu/images/welcomepanel/donate.png",
         Url = "https://www.beyondallreason.info/news/support-bar-with-our-newly-reopened-donation-platform",
         UrlText = "Read Announcement",
     },

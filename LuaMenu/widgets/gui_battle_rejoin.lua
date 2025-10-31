@@ -25,6 +25,7 @@ local function LoginRejoinOption(listener, battleID)
 
 	local battle = lobby:GetBattle(WG.Chobby.Configuration.rejoinBattleID) -- Battle Object
 	if battle == nil then
+		WG.Chobby.Configuration:SetConfigValue("rejoinBattleID", nil)
 		return
 	end
 	
@@ -67,6 +68,3 @@ function widget:Initialize()
 	VFS.Include(LUA_DIRNAME .. "widgets/chobby/headers/exports.lua", nil, VFS.RAW_FIRST)
 	WG.Delay(DelayedInitialize, 1)
 end
-
---------------------------------------------------------------------------------
---------------------------------------------------------------------------------

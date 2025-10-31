@@ -1,3 +1,16 @@
+if not table.shuffle then
+	---Shuffle sequence using Knuth (Fisher–Yates) algorithm.
+	---@param sequence any[] must be a Lua sequence (i.e. indexes form a contiguous sequence starting from 1), with the exception that we optionally allow starting from 0
+	---@param firstIndex? 0|1 first index in the sequence (optional, default: 1)
+	function table.shuffle(sequence, firstIndex)
+		firstIndex = firstIndex or 1
+		for i = firstIndex, #sequence - 2 + firstIndex do
+			local j = math.random(i, #sequence)
+			sequence[i], sequence[j] = sequence[j], sequence[i]
+		end
+	end
+end
+
 local mapsByGameType = {
 	["1v1"] = {
 		"Onyx Cauldron 2.2.2",
@@ -30,6 +43,20 @@ local mapsByGameType = {
 		"Requiem Outpost 1.0.1",
 	},
 }
+
+table.shuffle(mapsByGameType["1v1"])
+table.shuffle(mapsByGameType["2v2"])
+table.shuffle(mapsByGameType["3v3"])
+table.shuffle(mapsByGameType["Scavengers"])
+table.shuffle(mapsByGameType["Raptors"])
+
+for gameType, maplist in pairs(mapsByGameType) do
+	for index, mapname in pairs(maplist) do
+		if index > 4 then
+			mapsByGameType[gameType][index] = nil
+		end
+	end
+end
 
 local gameTypes = {
 	"1v1",
@@ -71,6 +98,21 @@ local skirmishSetupData = {
 			}
 		},
 		{
+			humanName = "Select your Faction",
+			name = "faction",
+			minimap = false,
+			options = {
+				"Armada",
+				"Cortex",
+				"Random",
+			},
+			optionTooltip = {
+				"Armada relies on mobility, versatility and stealth, focusing more on direct firepower than indirect artillery.",
+				"Cortex relies on overwhelming firepower, tough frontline units, and conventional artillery.",
+				"Randomly choose from available factions.",
+			}
+		},
+		{
 			humanName = "Select Map",
 			name = "map",
 			minimap = true,
@@ -87,7 +129,7 @@ function skirmishSetupData.ApplyFunction(battleLobby, pageChoices)
 	local difficulty = pageChoices.difficulty or 1
 	local gameType = pageChoices.gameType or 1
 	local map = pageChoices.map or 2
-
+	local faction = pageChoices.faction
 	local pageConfig = skirmishSetupData.pages
 	local selectedGameType = pageConfig[1].options[gameType]
 	local mapOptions = skirmishSetupData.mapsByGameType[selectedGameType]
@@ -131,16 +173,23 @@ function skirmishSetupData.ApplyFunction(battleLobby, pageChoices)
 		WG.BattleRoomWindow.AddStartRect(1, l, t, r, b)
 	end
 
+	local sidedataMap = {
+		["Armada"] = 0,
+		["Cortex"] = 1,
+		["Random"] = 2,
+	}
+
 	battleLobby:SetBattleStatus({
 		allyNumber = 0,
 		isSpectator = false,
+		side = sidedataMap[pageConfig[3].options[faction]],
 	})
 
 	-- Handle PvE modes
 	local pveDifficultyMap = {
-		["Easy"] = "easy",
+		["Easy"] = "veryeasy",
 		["Medium"] = "normal",
-		["Hard"] = "hard"
+		["Hard"] = "veryhard"
 	}
 
 	if gameType == 4 then -- Scavengers
@@ -167,7 +216,12 @@ function skirmishSetupData.ApplyFunction(battleLobby, pageChoices)
 			allyNumber = 0,
 			side = math.random(0, 1),
 		}
-		battleLobby:AddAi(displayName .. "(" .. aiNumber .. ")", "BARb", 0, nil, aiOptions, battleStatusOptions)
+		if pageConfig[2].options[difficulty] == "Easy" then
+			battleLobby:AddAi("SimpleAI" .. "(" .. aiNumber .. ")", "SimpleAI", 0, nil, nil, battleStatusOptions)
+		else
+			battleLobby:AddAi(displayName .. "(" .. aiNumber .. ")", "BARb", 0, nil, aiOptions, battleStatusOptions)
+		end
+		
 		aiNumber = aiNumber + 1
 	end
 
@@ -180,7 +234,12 @@ function skirmishSetupData.ApplyFunction(battleLobby, pageChoices)
 			allyNumber = 1,
 			side = math.random(0, 1),
 		}
-		battleLobby:AddAi(displayName .. "(" .. aiNumber .. ")", "BARb", 1, nil, aiOptions, battleStatusOptions)
+		if pageConfig[2].options[difficulty] == "Easy" then
+			battleLobby:AddAi("SimpleAI" .. "(" .. aiNumber .. ")", "SimpleAI", 1, nil, nil, battleStatusOptions)
+		else
+			battleLobby:AddAi(displayName .. "(" .. aiNumber .. ")", "BARb", 1, nil, aiOptions, battleStatusOptions)
+		end
+		
 		aiNumber = aiNumber + 1
 	end
 end

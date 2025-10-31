@@ -29,11 +29,8 @@ function BattleListWindow:init(parent)
 		OnTextModified = {
 			function (input)
 				Configuration.gameConfig.battleListOnlyShow = input.text
-				-- force an update
-				if Configuration.battleFilterRedundant then
-					self:UpdateAllBattleIDs()
-				end
-				self:UpdateFilters()
+				-- when a filter is updated, force an update immediately
+				self:SoftUpdate(true)
 			end
 		}
 	}
@@ -100,14 +97,14 @@ function BattleListWindow:init(parent)
 		OnChange = {
 			function (obj, newState)
 				Configuration:SetConfigValue("battleFilterPassworded2", newState)
-				self:SoftUpdate()
+				self:SoftUpdate(true) -- force the re-sort immediately when any filter box is changed
 			end
 		},
 		parent = self.window,
 		tooltip = "Hides all battles that require a password to join",
 	}
 	local checkNonFriend = Checkbox:New {
-		x = "33%",
+		x = "35%",
 		width = 21,
 		bottom = 8,
 		height = 30,
@@ -119,14 +116,14 @@ function BattleListWindow:init(parent)
 		OnChange = {
 			function (obj, newState)
 				Configuration:SetConfigValue("battleFilterNonFriend", newState)
-				self:SoftUpdate()
+				self:SoftUpdate(true)
 			end
 		},
 		parent = self.window,
 		tooltip = "Hides all battles that don't have your friends in them",
 	}
 	local checkRunning = Checkbox:New {
-		x = "50%",
+		x = "55%",
 		width = 21,
 		bottom = 8,
 		height = 30,
@@ -138,33 +135,33 @@ function BattleListWindow:init(parent)
 		OnChange = {
 			function (obj, newState)
 				Configuration:SetConfigValue("battleFilterRunning", newState)
-				self:SoftUpdate()
+				self:SoftUpdate(true)
 			end
 		},
 		parent = self.window,
 		tooltip = "Hides all battles that are in progress",
 	}
-	local checkVsAI = Checkbox:New {
-		x = "65%",
-		width = 21,
+	local combPvMode = ComboBox:New {
+		x = "70%",
+		width = 85,
 		bottom = 8,
 		height = 30,
 		boxalign = "left",
 		boxsize = 20,
-		caption = " Vs AI",
-		checked = Configuration.battleFilterVsAI or false,
+		items = {"---", "PvE", "PvP"},
 		objectOverrideFont = myFont2,
-		OnChange = {
-			function (obj, newState)
-				Configuration:SetConfigValue("battleFilterVsAI", newState)
-				self:SoftUpdate()
+		selected = Configuration.battleFilterPvMode or 1,
+		OnSelect = {
+			function (obj)
+				Configuration:SetConfigValue("battleFilterPvMode", obj.selected)
+				self:SoftUpdate(true)
 			end
 		},
 		parent = self.window,
-		tooltip = "Hides all battles with AIs, including PvE",
+		tooltip = "Hides all AI (including PvE) or PvP battles.",
 	}
     local checkLocked = Checkbox:New {
-		x = "77%",
+		x = "85%",
 		width = 21,
 		bottom = 8,
 		height = 30,
@@ -176,7 +173,7 @@ function BattleListWindow:init(parent)
 		OnChange = {
 			function (obj, newState)
 				Configuration:SetConfigValue("battleFilterLocked", newState)
-				self:SoftUpdate()
+				self:SoftUpdate(true)
 			end
 		},
 		parent = self.window,
@@ -188,7 +185,7 @@ function BattleListWindow:init(parent)
 		checkNonFriend:SetToggle(Configuration.battleFilterNonFriend)
 		checkRunning:SetToggle(Configuration.battleFilterRunning)
         checkLocked:SetToggle(Configuration.battleFilterLocked)
-		checkVsAI:SetToggle(Configuration.battleFilterVsAI)
+		combPvMode:Select(Configuration.battleFilterPvMode)
 	end
 	WG.Delay(UpdateCheckboxes, 0.2)
 	-- Delay required as Configuration:GetConfigData (where these values are set) runs after this is initialised.
@@ -308,22 +305,21 @@ function BattleListWindow:Update()
 		self:UpdateButtonColor(battle.battleID)
 	end
 
-	self:SoftUpdate()
+	self:SoftUpdate(true) -- on a "hard" update, force the Filters call to be immediate
 end
 
-
-function BattleListWindow:SoftUpdate()
+function BattleListWindow:SoftUpdate(forceNow)
 	-- UpdateFilters is quite heavy, because it sorts all the battles on the
 	-- list, so instead of just calling SoftUpdate functionality directly,
-	-- we only update, if we havent updated in 3 seconds.
+	-- we only update, if we havent updated in 4 seconds.
 	-- Also note, that the previous implementation somehow ran on intermediate states, 
-	-- causeing severe bouncing of battles up and down
-	if self.lastSoftUpdate == nil then
-		self.lastSoftUpdate = Spring.GetTimer()
-	end
+	-- causing severe bouncing of battles up and down
 
+	forceNow = forceNow or false --set default behavior to not force the update now and allow empty calls
+	-- using force now is different from Update() because update will clear and re-add everything, which is expensive!
+	
 	self:UpdateInfoPanel()
-	if Spring.DiffTimers(Spring.GetTimer(), self.lastSoftUpdate) > 3 then
+	if self.lastSoftUpdate == nil or forceNow or Spring.DiffTimers(Spring.GetTimer(), self.lastSoftUpdate) > 4 then
 		self.lastSoftUpdate = Spring.GetTimer()
 		if Configuration.battleFilterRedundant then
 			self:UpdateAllBattleIDs()
@@ -691,9 +687,12 @@ function BattleListWindow:MakeJoinBattle(battleID, battle)
 		align = "right",
 		valign = 'center',
 		objectOverrideFont = myFont2,
-		caption = lobby:GetBattlePlayerCount(battleID) .. "/" .. battle.maxPlayers,
+		caption = lobby:GetPlayerOccupancy(battleID),
 		parent = parentButton,
 	}
+
+	parentButton.previousMaxPlayers = lobby:GetBattleMaxPlayers(battleID)
+	parentButton.previousPlayerCount = lobby:GetBattlePlayerCount(battleID)
 
 	return parentButton
 end
@@ -716,6 +715,7 @@ function BattleListWindow:AddBattle(battleID, battle)
 	end
 
 	self:AddRow({button}, battle.battleID)
+	self:RecalculateOrder(battle.battleID) -- when a battle is added to the list, go ahead and ensure it's sorted correctly. Other cases will rely on soft update
 end
 
 function BattleListWindow:ItemInFilter(id)
@@ -757,8 +757,15 @@ function BattleListWindow:ItemInFilter(id)
 		return false
 	end
 
-	if Configuration.battleFilterVsAI and (string.find(battle.title, "vs AI") or string.find(battle.title, "vs Scavengers") or string.find(battle.title, "vs Raptors")) then
-		return false
+	if Configuration.battleFilterPvMode and Configuration.battleFilterPvMode > 1 then
+		local vsAI = battle.title:find("vs AI") 
+				or battle.title:find("vs Scavengers") 
+				or battle.title:find("vs Raptors")
+
+		if (vsAI and Configuration.battleFilterPvMode == 2)
+		or (not vsAI and Configuration.battleFilterPvMode == 3) then
+			return false
+		end
 	end
 
 	if Configuration.battleFilterRedundant then
@@ -1084,7 +1091,7 @@ function BattleListWindow:JoinedBattle(battleID)
 	if playersCaption then
 		local newPlayerCount = lobby:GetBattlePlayerCount(battleID)
 		if battleButton.previousPlayerCount ~= newPlayerCount then 
-			playersCaption:SetCaption(newPlayerCount .. "/" .. battle.maxPlayers)
+			playersCaption:SetCaption(lobby:GetPlayerOccupancy(battleID))
 			battleButton.previousPlayerCount = newPlayerCount
 		end
 	else
@@ -1095,7 +1102,6 @@ function BattleListWindow:JoinedBattle(battleID)
 
 	self:UpdateRankIcon(battleID, battle, items)
 	self:UpdateButtonColor(battleID)
-	self:RecalculateOrder(battleID)
 end
 
 function BattleListWindow:LeftBattle(battleID)
@@ -1115,7 +1121,7 @@ function BattleListWindow:LeftBattle(battleID)
 	if playersCaption then
 		local newPlayerCount = lobby:GetBattlePlayerCount(battleID)
 		if battleButton.previousPlayerCount ~= newPlayerCount then 
-			playersCaption:SetCaption(newPlayerCount .. "/" .. battle.maxPlayers)
+			playersCaption:SetCaption(lobby:GetPlayerOccupancy(battleID))
 			battleButton.previousPlayerCount = newPlayerCount
 		end
 	else
@@ -1126,7 +1132,6 @@ function BattleListWindow:LeftBattle(battleID)
 
 	self:UpdateRankIcon(battleID, battle, items)
 	self:UpdateButtonColor(battleID)
-	self:RecalculateOrder(battleID)
 end
 
 function BattleListWindow:OnUpdateBattleInfo(battleID)
@@ -1193,10 +1198,12 @@ function BattleListWindow:OnUpdateBattleInfo(battleID)
 		-- local gameCaption = items.battleButton:GetChildByName("gameCaption")
 		-- gameCaption:SetCaption(self:_MakeGameCaption(battle))
 		local newPlayerCount = lobby:GetBattlePlayerCount(battleID)
-		if battleButton.previousPlayerCount ~= newPlayerCount then 
+		local newMaxPlayers = lobby:GetBattleMaxPlayers(battleID)
+		if battleButton.previousPlayerCount ~= newPlayerCount or battleButton.previousMaxPlayers ~= newMaxPlayers then 
 			local playersCaption = battleButton:GetChildByName("playersCaption")
-			playersCaption:SetCaption(newPlayerCount .. "/" .. battle.maxPlayers)
+			playersCaption:SetCaption(lobby:GetPlayerOccupancy(battleID))
 			battleButton.previousPlayerCount = newPlayerCount
+			battleButton.previousMaxPlayers = newMaxPlayers
 		end
 
 	else
@@ -1214,7 +1221,6 @@ function BattleListWindow:OnUpdateBattleInfo(battleID)
 	end
 
 	self:UpdateButtonColor(battleID)
-	self:RecalculateOrder(battleID)
 end
 
 function BattleListWindow:OnBattleIngameUpdate(battleID, isRunning)
@@ -1233,7 +1239,6 @@ function BattleListWindow:OnBattleIngameUpdate(battleID, isRunning)
 	imgIsRunning:SetVisibility(battle.isRunning == true)
 
 	self:UpdateButtonColor(battleID)
-	self:RecalculateOrder(battleID)
 end
 
 function BattleListWindow:OnFriendRequestList()
@@ -1264,7 +1269,6 @@ function BattleListWindow:OnUpdateBattleTitle(battleID, battleTitle)
 	items.battleButton:Invalidate()
 
 	self:UpdateButtonColor(battleID)
-	self:RecalculateOrder(battleID)
 end
 
 
@@ -1694,8 +1698,6 @@ function BattleListWindow:JoinBattle(battle, _, _, joinAsPlayer)
 	-- We can be force joined to an invalid engine version. This widget is not
 	-- the place to deal with this case.
 	if not battle.passworded then
-		WG.BattleRoomWindow.LeaveBattle()
-
 		local removeListeners
 
 		local function onJoinBattle(listener)
@@ -1703,19 +1705,31 @@ function BattleListWindow:JoinBattle(battle, _, _, joinAsPlayer)
 		end
 
 		local function onJoinBattleFailed(listener, reason)
-			WG.Chobby.InformationPopup("Unable to join battle: " .. (reason or ""))
 			removeListeners()
+			WG.Chobby.InformationPopup("Unable to join battle: " .. (reason or ""))
+		end
+
+		local function joinBattle(listener)
+			removeListeners()
+
+			lobby:AddListener("OnJoinBattleFailed", onJoinBattleFailed)
+			lobby:AddListener("OnJoinBattle", onJoinBattle)
+
+			lobby:JoinBattle(battle.battleID, _, _, joinAsPlayer)	
 		end
 
 		removeListeners = function ()
+			lobby:RemoveListener("OnLeftBattle", joinBattle)
 			lobby:RemoveListener("OnJoinBattleFailed", onJoinBattleFailed)
 			lobby:RemoveListener("OnJoinBattle", onJoinBattle)
 		end
 
-		lobby:AddListener("OnJoinBattleFailed", onJoinBattleFailed)
-		lobby:AddListener("OnJoinBattle", onJoinBattle)
-
-		lobby:JoinBattle(battle.battleID, _, _, joinAsPlayer)
+		if lobby:GetMyBattleID() then
+			lobby:AddListener("OnLeftBattle", joinBattle)
+			WG.BattleRoomWindow.LeaveBattle()
+		else
+			joinBattle()
+		end
 	else
 		local tryJoin, passwordWindow
 
@@ -1829,4 +1843,6 @@ function BattleListWindow:JoinBattle(battle, _, _, joinAsPlayer)
 		local popupHolder = PriorityPopup(passwordWindow, CancelFunc, tryJoin)
 		screen0:FocusControl(ebPassword)
 	end
+	
 end
+
